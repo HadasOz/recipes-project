@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Gourmet Recipes | המטבח שלי</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+    body {
+        background-image: url('/static/reka.jpg');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+        margin: 0;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>ברוכים הבאים לאתר המתכונים</h1>
+</header>
+
+<div class="container">
+    <section class="ai-section">
+        <h2 style="color: var(--brand-green)">שאלו את השף הפרטי</h2>
+        <div style="display: flex; gap: 15px; margin-top: 20px;">
+            <input type="text" id="aiQuery" style="flex: 1; padding: 18px; border-radius: 16px; border: 2px solid #eee;" placeholder="שאלו כל דבר על אפייה ובישול...">
+            <button onclick="askAI()">קבלת עצה</button>
+        </div>
+        <div id="aiResponse" style="display: none; margin-top: 20px; padding: 20px; background: #f0f7f2; border-radius: 16px;"></div>
+    </section>
+
+    <div id="recipesList" class="recipes-grid">
+        </div>
+</div>
+
+<div id="recipeModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+    async function loadRecipes() {
+        console.log("מנסה לטעון מתכונים...");
+        try {
+            const response = await fetch('/recipes');
+            const recipes = await response.json();
+            const container = document.getElementById('recipesList');
+            container.innerHTML = '';
+
+            if (recipes.length === 0) {
+                container.innerHTML = '<h3>לא נמצאו מתכונים במסד הנתונים.</h3>';
+                return;
+            }
+
+            recipes.forEach(r => {
+                // בדיקה בטוחה של שדות כדי למנוע קריסה
+                const name = r.name || "מתכון ללא שם";
+                const category = r.category || "כללי";
+
+                container.innerHTML += `
+                    <div class="recipe-card" onclick="openRecipe(${r.id})">
+                        <div class="recipe-content">
+                            <span class="category-tag">${category}</span>
+                            <h3>${name}</h3>
+                            <p style="color: #666; font-size: 0.95rem;">לחצו לצפייה בהוראות ההכנה...</p>
+                        </div>
+                        <div style="color: #1a4d2e; font-weight: bold; margin-top: 10px;">קרא עוד ←</div>
+                    </div>`;
+            });
+        } catch (e) {
+            console.error("שגיאה בטעינה:", e);
+            document.getElementById('recipesList').innerHTML = '<h3>שגיאה בחיבור לשרת הנתונים.</h3>';
+        }
+    }
+
+    async function openRecipe(id) {
+        const modal = document.getElementById('recipeModal');
+        const body = document.getElementById('modalBody');
+        try {
+            const response = await fetch(`/recipes/${id}`);
+            const r = await response.json();
+            body.innerHTML = `
+                <h2 style="color: #1a4d2e;">${r.name}</h2>
+                <hr>
+                <p style="white-space: pre-line;">${r.instructions}</p>
+            `;
+            modal.style.display = 'flex';
+        } catch (e) { alert("שגיאה בטעינת המתכון"); }
+    }
+
+    function closeModal() { document.getElementById('recipeModal').style.display = 'none'; }
+
+    async function askAI() {
+        const query = document.getElementById('aiQuery').value;
+        const resp = document.getElementById('aiResponse');
+        if (!query) return;
+
+        resp.style.display = 'block';
+        resp.innerHTML = 'השף חושב...';
+
+        try {
+            const res = await fetch(`/ask?question=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            // שימוש ב-data.answer או data.error לפי מה שהשרת מחזיר
+            resp.innerHTML = data.answer || data.error || data.detail || "לא התקבלה תשובה";
+        } catch (e) {
+            resp.innerHTML = "שגיאה בחיבור ל-AI";
+        }
+    }
+
+    loadRecipes();
+</script>
+</body>
+</html>
